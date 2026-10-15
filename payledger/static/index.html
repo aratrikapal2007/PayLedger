@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PayLedger</title>
+<style>
+:root{
+  --bg:#f2f7f5;--card:#ffffff;--ink:#10231f;--mute:#5b6f69;--line:#e0eae6;--soft:#f3f8f6;
+  --brand:#0f766e;--brand2:#14b8a6;--gold:#f4b740;--on-brand:#fff;--in:#0a8f5f;--out:#e0455b;
+  --shadow:0 1px 2px #0b2a2410,0 8px 24px #0b2a2412;--side:#072c2a;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#06100f;--card:#0d1b19;--ink:#e7f4f0;--mute:#93aca5;--line:#1d3430;--soft:#12241f;
+  --brand:#2dd4bf;--brand2:#5eead4;--on-brand:#03201d;--in:#34d399;--out:#fb7185;
+  --shadow:0 1px 2px #0006,0 10px 28px #0005;--side:#04100f;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 55%,transparent);outline-offset:2px}
+.hidden{display:none!important}
+svg{width:18px;height:18px;flex:none}
+
+/* buttons + fields */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:11px 18px;font-weight:650;background:linear-gradient(135deg,var(--brand),var(--brand2));color:var(--on-brand);box-shadow:0 6px 16px #0f766e40;transition:transform .12s,box-shadow .12s,opacity .12s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 10px 22px #0f766e59}
+.btn:active{transform:none}
+.btn[disabled]{opacity:.6;cursor:default;transform:none}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:hover{background:var(--soft)}
+.btn.light{background:#fff;color:#0b4f4a;box-shadow:none}
+.field{display:block;margin-bottom:14px}
+.field>span{display:block;font-size:.85rem;font-weight:600;color:var(--mute);margin-bottom:6px}
+input,select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--card);transition:border-color .12s,box-shadow .12s}
+input:focus{border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 16%,transparent);outline:0}
+.err{color:var(--out);min-height:1.4em;margin:6px 0 0;font-size:.9rem}
+
+/* avatars */
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.9rem;color:#fff;flex:none;letter-spacing:.02em}
+.av.sm{width:30px;height:30px;font-size:.75rem}
+.av.lg{width:46px;height:46px;font-size:1rem}
+
+/* login */
+.login{min-height:100vh;display:grid;grid-template-columns:1.05fr 1fr}
+.hero{position:relative;overflow:hidden;padding:56px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;background:radial-gradient(900px 500px at 10% 0%,#14b8a6 0%,transparent 60%),radial-gradient(700px 500px at 100% 100%,#f4b74066 0%,transparent 55%),#062a28}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.25rem;letter-spacing:-.02em}
+.logo i{width:34px;height:34px;border-radius:10px;background:var(--gold);color:#3a2a00;display:grid;place-items:center;font-style:normal;backdrop-filter:blur(6px)}
+.hero h1{font-size:clamp(2rem,3.6vw,3.2rem);line-height:1.08;letter-spacing:-.03em;margin:0 0 14px;max-width:460px}
+.hero p{margin:0;max-width:420px;opacity:.85;font-size:1.05rem}
+.floaty{margin-top:34px;display:grid;gap:10px;max-width:360px}
+.mini{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#ffffff1f;backdrop-filter:blur(10px);border:1px solid #ffffff2e}
+.mini b{display:block;font-size:.95rem}.mini small{opacity:.8}.mini .amt{margin-left:auto;font-weight:700}
+.formside{display:grid;place-items:center;padding:32px 20px}
+.formbox{width:min(400px,100%)}
+.formbox h2{font-size:1.7rem;letter-spacing:-.02em;margin:0 0 4px}
+.formbox>p{color:var(--mute);margin:0 0 22px}
+.demo{margin-top:24px;padding-top:18px;border-top:1px dashed var(--line)}
+.demo small{display:block;color:var(--mute);margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border:1px solid var(--line);border-radius:99px;background:var(--card);font-weight:600;font-size:.88rem}
+.chip:hover{border-color:var(--brand)}
+
+/* app shell */
+.shell{display:grid;grid-template-columns:320px 1fr;min-height:100vh}
+aside{background:var(--side);color:#eef1fb;padding:28px 22px;display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100vh}
+.me{display:flex;align-items:center;gap:12px}
+.me b{display:block;line-height:1.2}.me small{opacity:.65}
+.wallet{border-radius:22px;padding:22px;color:#fff;background:radial-gradient(240px 160px at 100% 0%,#f4b74059,transparent 70%),linear-gradient(135deg,#0b5f59,#0f766e 50%,#14b8a6);box-shadow:0 18px 40px #0f766e55}
+.wallet small{opacity:.85;font-size:.85rem}
+.wallet .bal{font-size:2.3rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin:4px 0 14px;word-break:break-word}
+.wallet .card-no{display:flex;justify-content:space-between;opacity:.8;font-size:.8rem;letter-spacing:.14em}
+.side-actions{display:grid;gap:10px}
+.side-actions .ghost{color:#eef1fb;border-color:#ffffff2b}.side-actions .ghost:hover{background:#ffffff14}
+.spacer{flex:1}
+.foot{font-size:.78rem;opacity:.5}
+main{padding:34px clamp(16px,4vw,52px) 56px;max-width:1000px;width:100%}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.top h2{margin:0;font-size:1.7rem;letter-spacing:-.02em}.top p{margin:2px 0 0;color:var(--mute)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:var(--shadow)}
+.stat small{display:flex;align-items:center;gap:6px;color:var(--mute);font-weight:600}
+.stat b{display:block;font-size:1.45rem;letter-spacing:-.02em;margin-top:4px}
+.stat .dot{width:8px;height:8px;border-radius:50%}
+.tools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.search{position:relative;flex:1;min-width:200px}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--mute)}
+.search input{padding-left:40px}
+.seg{display:inline-flex;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{border:0;background:none;padding:7px 14px;border-radius:9px;font-weight:600;color:var(--mute)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.ledger{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+.entry{display:flex;align-items:center;gap:14px;width:100%;padding:14px 18px;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;transition:background .12s;animation:rise .35s both}
+.entry:last-child{border-bottom:0}
+.entry:hover{background:var(--soft)}
+.entry .mid{flex:1;min-width:0}
+.entry .memo{display:block;font-weight:650;overflow-wrap:anywhere}
+.entry .party{color:var(--mute);font-size:.86rem}
+.amt{font-weight:750;white-space:nowrap}.amt.in{color:var(--in)}.amt.out{color:var(--out)}
+.empty{padding:46px 20px;text-align:center;color:var(--mute)}
+.empty b{display:block;color:var(--ink);font-size:1.05rem;margin-bottom:4px}
+.skel{height:70px;margin:12px 18px;border-radius:14px;background:linear-gradient(90deg,var(--soft),var(--line),var(--soft));background-size:200% 100%;animation:sh 1.2s infinite}
+.lookup{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding:16px 18px;background:var(--card);border:1px dashed var(--line);border-radius:18px}
+.lookup b{flex:1;min-width:180px}.lookup b small{display:block;color:var(--mute);font-weight:500}
+.lookup input{width:150px}
+
+/* dialogs */
+dialog{border:0;border-radius:24px;background:var(--card);color:var(--ink);width:min(460px,94vw);padding:0;box-shadow:0 30px 80px #0006;overflow:hidden}
+dialog[open]{animation:pop .2s ease}
+dialog::backdrop{background:#0a0f2299;backdrop-filter:blur(3px)}
+.dbody{padding:24px}
+.dbody h3{margin:0 0 16px;font-size:1.25rem;letter-spacing:-.01em}
+.row{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.people{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.person{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border:1.5px solid var(--line);border-radius:16px;cursor:pointer;font-size:.85rem;font-weight:600;text-align:center}
+.person input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.person:has(input:checked){border-color:var(--brand);background:color-mix(in srgb,var(--brand) 9%,transparent)}
+.person:has(input:focus-visible){outline:3px solid color-mix(in srgb,var(--brand) 55%,transparent)}
+.rupee{position:relative}.rupee b{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mute)}.rupee input{padding-left:30px;font-weight:700;font-size:1.1rem}
+.quick{display:flex;gap:8px;margin:8px 0 14px;flex-wrap:wrap}
+.quick button{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 12px;font-weight:600;font-size:.85rem}
+.quick button:hover{border-color:var(--brand)}
+.count{float:right;font-weight:500;opacity:.8}
+.rc-head{padding:26px 24px 22px;text-align:center;color:#fff;background:radial-gradient(260px 140px at 80% 0%,#f4b74055,transparent 70%),linear-gradient(135deg,#0b5f59,#14b8a6)}
+.rc-head .tick{width:46px;height:46px;border-radius:50%;background:#ffffff2b;display:grid;place-items:center;margin:0 auto 10px}
+.rc-head .tick svg{width:24px;height:24px}
+.rc-head small{opacity:.85}.rc-head .big{font-size:2.2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.rc-body{padding:18px 24px 22px;position:relative}
+.rc-body:before{content:"";position:absolute;left:14px;right:14px;top:0;border-top:2px dashed var(--line)}
+dl{display:grid;grid-template-columns:96px 1fr;gap:12px 12px;margin:6px 0 0;align-items:center}
+dt{color:var(--mute);font-size:.88rem}dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+dd .who{display:flex;align-items:center;gap:10px}
+.memo-box{background:var(--soft);border-radius:12px;padding:10px 12px;font-weight:500}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;background:#0b1f1c;color:#fff;padding:12px 18px;border-radius:14px;box-shadow:0 14px 34px #0005;pointer-events:none;transition:.25s;z-index:99;max-width:92vw}
+.toast.show{opacity:1;transform:translate(-50%,0)}.toast.bad{background:#b42318}.toast.good{background:#067647}
+.strip{display:flex;align-items:center;gap:10px;margin:-4px 0 22px;flex-wrap:wrap}
+.strip>span{color:var(--mute);font-weight:600;font-size:.85rem}
+.strip button{display:flex;align-items:center;gap:8px;padding:5px 14px 5px 5px;border:1px solid var(--line);border-radius:99px;background:var(--card);font-weight:600;font-size:.88rem;transition:.12s}
+.strip button:hover{border-color:var(--brand);transform:translateY(-1px)}
+.grp{padding:10px 18px 6px;font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);background:var(--soft);border-bottom:1px solid var(--line)}
+.sec{margin:0 0 10px;font-size:1.05rem}
+.sum{min-height:1.4em;margin:2px 0 0;font-size:.9rem;color:var(--mute)}.sum.warn{color:var(--out)}
+.empty .btn{margin-top:14px}
+.fab{display:none;position:fixed;right:18px;bottom:18px;width:56px;height:56px;border-radius:50%;border:0;background:linear-gradient(135deg,var(--brand),var(--brand2));color:var(--on-brand);box-shadow:0 10px 26px #0f766e66;place-items:center;z-index:20}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:900px){
+  .fab{display:grid}
+  .login{grid-template-columns:1fr}.hero{padding:28px}.floaty{display:none}
+  .shell{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:column}
+  .spacer,.foot{display:none}.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<section id="login" class="login">
+  <div class="hero">
+    <div class="logo"><i>&#8377;</i>PayLedger</div>
+    <div>
+      <h1>Split bills. Settle up. <span style="color:var(--gold)">Stay friends.</span></h1>
+      <p>Send money to the people you share rent, trips and dinners with, and keep a clean record of every payment.</p>
+    </div>
+    <small style="opacity:.6">Demo app &middot; all money and people are fake</small>
+  </div>
+  <div class="formside">
+    <div class="formbox">
+      <h2>Welcome back</h2>
+      <p>Sign in to see your balance and recent payments.</p>
+      <label class="field"><span>Username</span><input id="u" autocomplete="username" placeholder="e.g. alice"></label>
+      <label class="field"><span>Password</span><input id="p" type="password" autocomplete="current-password" placeholder="Your password"></label>
+      <button class="btn" id="loginBtn" style="width:100%">Sign in</button>
+      <p class="err" id="loginErr" role="alert"></p>
+      <div class="demo">
+        <small>Try a demo account (tap to fill)</small>
+        <div class="chips" id="demoChips"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="app" class="shell hidden">
+  <aside>
+    <div class="logo"><i>&#8377;</i>PayLedger</div>
+    <div class="me"><span id="meAv"></span><div><b id="who"></b><small id="handle"></small></div></div>
+    <div class="wallet">
+      <small>Available balance</small>
+      <div class="bal" id="bal">&nbsp;</div>
+      <div class="card-no"><span>PAYLEDGER</span><span id="cardNo"></span></div>
+    </div>
+    <div class="side-actions">
+      <button class="btn light" id="sendOpen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>Send money</button>
+      <button class="btn ghost" id="logout">Sign out</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="foot">Local demo &middot; fake money</div>
+  </aside>
+  <main>
+    <div class="top">
+      <div><h2 id="hello"></h2><p id="today"></p></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><small><i class="dot" style="background:var(--in)"></i>Received</small><b id="sIn">&nbsp;</b></div>
+      <div class="stat"><small><i class="dot" style="background:var(--out)"></i>Sent</small><b id="sOut">&nbsp;</b></div>
+      <div class="stat"><small><i class="dot" style="background:var(--brand)"></i>Payments</small><b id="sCnt">&nbsp;</b></div>
+    </div>
+    <div class="strip"><span>Send to</span><div id="strip" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
+    <h3 class="sec">Recent activity</h3>
+    <div class="tools">
+      <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" type="search" placeholder="Search by memo" aria-label="Search by memo"></label>
+      <div class="seg" id="seg" role="group" aria-label="Filter">
+        <button data-f="all" class="on">All</button><button data-f="in">Received</button><button data-f="out">Sent</button>
+      </div>
+    </div>
+    <div class="ledger" id="ledger" aria-live="polite"></div>
+    <div class="lookup">
+      <b>Have a reference number?<small>Open a payment receipt directly.</small></b>
+      <input id="refNo" type="number" min="1" placeholder="e.g. 3" aria-label="Reference number">
+      <button class="btn ghost" id="refGo">Open receipt</button>
+    </div>
+  </main>
+</div>
+
+<dialog id="sendDlg"><div class="dbody">
+  <h3>Send money</h3>
+  <div class="field"><span>To</span><div class="people" id="people"></div></div>
+  <label class="field"><span>Amount (INR)</span><div class="rupee"><b>&#8377;</b><input id="amount" type="number" min="1" step="0.01" inputmode="decimal" placeholder="0.00"></div></label>
+  <div class="quick" id="quick"></div>
+  <label class="field"><span>Memo <em class="count" id="count">0/200</em></span><input id="memo" maxlength="200" placeholder="What is this for?"></label>
+  <div class="quick" id="memoChips"></div>
+  <p class="sum" id="sum"></p>
+  <p class="err" id="sendErr" role="alert"></p>
+  <div class="row"><button class="btn ghost" id="sendCancel">Cancel</button><button class="btn" id="sendGo">Send</button></div>
+</div></dialog>
+
+<dialog id="detailDlg">
+  <div class="rc-head"><div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></div><small>Payment completed</small><div class="big" id="rcAmt"></div></div>
+  <div class="rc-body">
+    <dl id="detail"></dl>
+    <div class="row"><button class="btn ghost" id="copyLink">Copy link</button><button class="btn" id="detailClose">Close</button></div>
+  </div>
+</dialog>
+
+<button class="fab" id="fab" aria-label="Send money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let me = null, all = [], shown = [], people = [], filter = 'all', currentRef = null;
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr = c => '\u20B9' + (c / 100).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const when = s => new Date(s.replace(' ', 'T') + 'Z');
+const day = s => when(s).toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'});
+const stamp = s => when(s).toLocaleString('en-IN', {day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit'});
+const initials = n => String(n).split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+const HUES = ['#0ea5a4', '#e08a00', '#6366f1', '#d9467a', '#3b82f6', '#e2662e', '#6a9f1f'];
+const av = (name, id, cls = '') => `<span class="av ${cls}" style="background:${HUES[id % HUES.length]}">${esc(initials(name))}</span>`;
+const ref = id => 'PL-' + String(id).padStart(6, '0');
+
+function toast(msg, kind = '') {
+  const t = $('toast');
+  t.textContent = msg; t.className = 'toast show ' + kind;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = 'toast', 2800);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {headers: {'Content-Type': 'application/json'}, ...opts});
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Something went wrong');
+  return body;
+}
+
+const clock = s => when(s).toLocaleTimeString('en-IN', {hour: 'numeric', minute: '2-digit'});
+function dayLabel(s) {
+  const d = when(s).toDateString(), now = new Date();
+  return d === now.toDateString() ? 'Today' : d === new Date(now - 864e5).toDateString() ? 'Yesterday' : day(s);
+}
+
+function renderLedger() {
+  const el = $('ledger'), q = $('q').value.trim();
+  const list = shown.filter(t => filter === 'all' || (filter === 'in') === (t.recipient_id === me.id));
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><b>${q ? 'No matching payments' : 'No payments yet'}</b>${q ? 'Try a different word.' : 'Send money to a friend to get started.'}${q ? '' : '<br><button class="btn" data-act="send">Send money</button>'}</div>`;
+    return;
+  }
+  let last = '', n = 0;
+  el.innerHTML = list.map(t => {
+    const incoming = t.recipient_id === me.id;
+    const otherId = incoming ? t.sender_id : t.recipient_id;
+    const other = incoming ? t.sender_name : t.recipient_name;
+    const lbl = dayLabel(t.created_at);
+    const head = lbl !== last ? `<div class="grp">${esc(lbl)}</div>` : '';
+    last = lbl;
+    return head + `<button class="entry" data-id="${t.id}" style="animation-delay:${Math.min(n++, 8) * 30}ms">
+      ${av(other, otherId)}
+      <span class="mid"><span class="memo">${t.memo || '&mdash;'}</span><span class="party">${incoming ? 'From' : 'To'} ${esc(other)} &middot; ${esc(clock(t.created_at))}</span></span>
+      <span class="amt ${incoming ? 'in' : 'out'}">${incoming ? '+' : '\u2212'}${inr(t.amount_cents)}</span>
+    </button>`;
+  }).join('');
+}
+
+function renderStats() {
+  const sum = f => all.filter(f).reduce((a, t) => a + t.amount_cents, 0);
+  $('sIn').textContent = inr(sum(t => t.recipient_id === me.id));
+  $('sOut').textContent = inr(sum(t => t.sender_id === me.id));
+  $('sCnt').textContent = all.length;
+}
+
+async function refresh() {
+  me = await api('/api/me');
+  const h = new Date().getHours();
+  $('hello').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', ' + me.display_name.split(' ')[0];
+  $('today').textContent = new Date().toLocaleDateString('en-IN', {weekday: 'long', day: 'numeric', month: 'long'});
+  $('who').textContent = me.display_name;
+  $('handle').textContent = '@' + me.username;
+  $('meAv').innerHTML = av(me.display_name, me.id);
+  $('bal').textContent = inr(me.balance_cents);
+  $('cardNo').textContent = '\u2022\u2022\u2022\u2022 ' + String(1000 + me.id * 137).slice(-4);
+  const q = $('q').value.trim();
+  const [a, s] = await Promise.all([api('/api/transactions'), q ? api('/api/transactions/search?q=' + encodeURIComponent(q)) : null]);
+  all = a; shown = s || a;
+  if (!people.length) people = await api('/api/users');
+  $('strip').innerHTML = people.map(u => `<button data-id="${u.id}">${av(u.display_name, u.id, 'sm')}${esc(u.display_name.split(' ')[0])}</button>`).join('');
+  renderStats(); renderLedger();
+}
+
+async function enter() {
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('ledger').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  await refresh();
+  const m = location.hash.match(/^#\/receipt\/(\d+)$/);
+  if (m) openReceipt(m[1]);
+}
+
+async function signIn() {
+  const btn = $('loginBtn'); btn.disabled = true;
+  try {
+    await api('/api/login', {method: 'POST', body: JSON.stringify({username: $('u').value, password: $('p').value})});
+    $('loginErr').textContent = '';
+    await enter();
+  } catch (e) { $('loginErr').textContent = e.message; }
+  btn.disabled = false;
+}
+$('loginBtn').onclick = signIn;
+$('p').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
+$('u').addEventListener('keydown', e => { if (e.key === 'Enter') $('p').focus(); });
+$('logout').onclick = async () => { await api('/api/logout', {method: 'POST'}); history.replaceState(null, '', location.pathname); location.reload(); };
+
+$('demoChips').innerHTML = [['alice', 'Alice Menon', 0], ['bob', "Bob D'Souza", 1], ['carol', 'Carol Iyer', 2], ['dave', 'Dave Shah', 3]]
+  .map(([u, n, i]) => `<button class="chip" data-u="${u}">${av(n, i, 'sm')}${esc(u)}</button>`).join('');
+$('demoChips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  $('u').value = b.dataset.u; $('p').value = b.dataset.u + '123'; $('p').focus();
+});
+
+let timer;
+$('q').addEventListener('input', () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => refresh().catch(e => toast(e.message, 'bad')), 250);
+});
+$('seg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll('#seg button').forEach(x => x.classList.toggle('on', x === b));
+  renderLedger();
+});
+
+/* send money */
+async function openSend(pre) {
+  people = await api('/api/users');
+  $('people').innerHTML = people.map((u, i) => `<label class="person"><input type="radio" name="to" value="${u.id}" ${(pre ? String(u.id) === String(pre) : i === 0) ? 'checked' : ''}>${av(u.display_name, u.id, 'lg')}<span>${esc(u.display_name.split(' ')[0])}</span></label>`).join('');
+  $('quick').innerHTML = [100, 250, 500, 1000].map(n => `<button type="button" data-n="${n}">\u20B9${n}</button>`).join('');
+  $('memoChips').innerHTML = [['\uD83C\uDF55 Food', 'Food'], ['\uD83C\uDFE0 Rent', 'Rent'], ['\uD83D\uDE95 Cab', 'Cab ride'], ['\uD83C\uDFAC Movie', 'Movie night'], ['\uD83D\uDED2 Groceries', 'Groceries']].map(([l, v]) => `<button type="button" data-m="${v}">${l}</button>`).join('');
+  $('amount').value = ''; $('memo').value = ''; $('count').textContent = '0/200'; $('sendErr').textContent = '';
+  updateSum();
+  $('sendDlg').showModal();
+  $('amount').focus();
+}
+function updateSum() {
+  const to = document.querySelector('input[name="to"]:checked'), amt = parseFloat($('amount').value), el = $('sum');
+  const name = to ? (people.find(u => String(u.id) === to.value) || {}).display_name : '';
+  if (!(amt > 0) || !name) { el.textContent = ''; el.className = 'sum'; return; }
+  const over = Math.round(amt * 100) > me.balance_cents;
+  el.className = 'sum' + (over ? ' warn' : '');
+  el.textContent = over ? 'Not enough balance. You have ' + inr(me.balance_cents) + '.' : 'You are sending ' + inr(Math.round(amt * 100)) + ' to ' + name + '.';
+}
+$('sendOpen').onclick = () => openSend();
+$('fab').onclick = () => openSend();
+$('strip').addEventListener('click', e => { const b = e.target.closest('button'); if (b) openSend(b.dataset.id); });
+$('ledger').addEventListener('click', e => { if (e.target.closest('[data-act="send"]')) openSend(); });
+$('people').addEventListener('change', updateSum);
+$('amount').addEventListener('input', updateSum);
+$('quick').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { $('amount').value = b.dataset.n; updateSum(); } });
+$('memoChips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { $('memo').value = b.dataset.m; $('count').textContent = b.dataset.m.length + '/200'; } });
+$('memo').addEventListener('input', () => $('count').textContent = $('memo').value.length + '/200');
+$('sendCancel').onclick = () => $('sendDlg').close();
+$('sendGo').onclick = async () => {
+  const to = document.querySelector('input[name="to"]:checked');
+  const btn = $('sendGo'); btn.disabled = true;
+  try {
+    await api('/api/transactions', {method: 'POST', body: JSON.stringify({recipient_id: to && to.value, amount: $('amount').value, memo: $('memo').value})});
+    $('sendDlg').close();
+    await refresh();
+    toast('Payment sent', 'good');
+  } catch (e) { $('sendErr').textContent = e.message; }
+  btn.disabled = false;
+};
+
+/* receipts */
+async function openReceipt(id) {
+  try {
+    const t = await api('/api/transactions/' + encodeURIComponent(id));
+    currentRef = t.id;
+    $('rcAmt').textContent = inr(t.amount_cents);
+    $('detail').innerHTML =
+      `<dt>From</dt><dd><span class="who">${av(t.sender_name, t.sender_id, 'sm')}${esc(t.sender_name)}</span></dd>` +
+      `<dt>To</dt><dd><span class="who">${av(t.recipient_name, t.recipient_id, 'sm')}${esc(t.recipient_name)}</span></dd>` +
+      `<dt>Date</dt><dd>${esc(stamp(t.created_at))}</dd>` +
+      `<dt>Reference</dt><dd>${esc(ref(t.id))}</dd>` +
+      `<dt>Memo</dt><dd><div class="memo-box">${t.memo || '&mdash;'}</div></dd>`;
+    history.replaceState(null, '', '#/receipt/' + t.id);
+    if (!$('detailDlg').open) $('detailDlg').showModal();
+  } catch (err) { toast(err.message, 'bad'); }
+}
+$('ledger').addEventListener('click', e => {
+  const btn = e.target.closest('.entry');
+  if (btn) openReceipt(btn.dataset.id);
+});
+$('refGo').onclick = () => { const v = $('refNo').value.trim(); if (v) openReceipt(v); else toast('Enter a reference number', 'bad'); };
+$('refNo').addEventListener('keydown', e => { if (e.key === 'Enter') $('refGo').click(); });
+$('copyLink').onclick = async () => {
+  const url = location.origin + location.pathname + '#/receipt/' + currentRef;
+  try { await navigator.clipboard.writeText(url); toast('Link copied', 'good'); } catch { toast(url); }
+};
+$('detailClose').onclick = () => $('detailDlg').close();
+$('detailDlg').addEventListener('close', () => history.replaceState(null, '', location.pathname));
+window.addEventListener('hashchange', () => {
+  const m = location.hash.match(/^#\/receipt\/(\d+)$/);
+  if (m && me) openReceipt(m[1]);
+});
+
+api('/api/me').then(enter).catch(() => {});
+</script>
+</body>
+</html>
